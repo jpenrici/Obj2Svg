@@ -1,0 +1,3 @@
+// error.hpp
+// TODO: implement
+
