@@ -1,6 +1,7 @@
-# core/CMakeLists.txt EditorCore — geometry, transforms, projection,
-# triangulation and OBJ/SVG I/O. No dependency on the API boundary or the
-# client; pure C++26.
+# core/CMakeLists.txt
+#
+# EditorCore — geometry, transforms, projection, triangulation and OBJ/SVG I/O.
+# No dependency on the API boundary or the client; pure C++26.
 
 add_library(
   editor_core STATIC
@@ -22,7 +23,10 @@ add_library(
   src/geometry/projection.cpp
   src/geometry/triangulator.cpp
   src/io/obj_reader.cpp
-  src/io/svg_writer.cpp)
+  src/io/svg_writer.cpp
+  # -- Private helper --
+  src/geometry/geometry_internal.hpp
+  src/geometry/geometry_internal.cpp)
 
 add_library(Obj2Svg::editor_core ALIAS editor_core)
 
@@ -55,6 +59,14 @@ if(OBJ2SVG_BUILD_TESTS)
     add_executable(${test_name} ${test_src})
     target_link_libraries(${test_name} PRIVATE Obj2Svg::editor_core
                                                obj2svg_warnings)
+    # Tests that read fixture files get an absolute path to their fixtures/
+    # directory baked in at compile time.
+    if(test_name STREQUAL "test_obj_reader")
+      target_compile_definitions(
+        ${test_name}
+        PRIVATE FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/io/fixtures")
+    endif()
+
     add_test(NAME ${test_name} COMMAND ${test_name})
   endforeach()
 endif()
