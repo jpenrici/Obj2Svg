@@ -1,8 +1,6 @@
 #include "editor_core/geometry/projection.hpp"
 
 #include <algorithm>
-#include <set>
-#include <utility>
 
 #include "geometry_internal.hpp"
 
@@ -40,28 +38,6 @@ ProjectedVertex project_point(const Vec3& p, const Mat4& vp, const Mat4& view_ma
     return out;
 }
 
-/// @brief Collects the unique undirected edges implied by every face's
-///        consecutive vertex pairs (including the closing edge).
-std::vector<ProjectedEdge> collect_unique_edges(const EditorMesh& mesh) {
-    std::set<std::pair<std::size_t, std::size_t>> seen;
-    std::vector<ProjectedEdge> edges;
-
-    for (const auto& face : mesh.faces) {
-        const std::size_t count = face.vertex_indices.size();
-        for (std::size_t i = 0; i < count; ++i) {
-            std::size_t a = face.vertex_indices[i];
-            std::size_t b = face.vertex_indices[(i + 1) % count];
-            if (a > b) {
-                std::swap(a, b);
-            }
-            if (seen.insert({a, b}).second) {
-                edges.push_back(ProjectedEdge{a, b});
-            }
-        }
-    }
-    return edges;
-}
-
 } // namespace
 
 ProjectedMesh project_mesh(const EditorMesh& mesh, const CameraView& camera) {
@@ -74,7 +50,10 @@ ProjectedMesh project_mesh(const EditorMesh& mesh, const CameraView& camera) {
                                                   camera.viewport_width, camera.viewport_height));
     }
 
-    result.edges = collect_unique_edges(mesh);
+    result.edges.reserve(mesh.faces.size()); // rough upper-bound hint
+    for (const auto& e : compute_edges(mesh)) {
+        result.edges.push_back(ProjectedEdge{e.a, e.b});
+    }
 
     result.polygons.reserve(mesh.faces.size());
     for (const auto& face : mesh.faces) {

@@ -14,14 +14,10 @@ namespace editor_core {
 enum class FaceFlags : uint32_t { None = 0 };
 
 /// @brief A single vertex position in model space.
-struct Vertex {
-  float x, y, z;
-};
+struct Vertex { float x, y, z; };
 
 /// @brief A single vertex/face normal direction.
-struct Normal {
-  float x, y, z;
-};
+struct Normal { float x, y, z; };
 
 /// @brief A polygonal face (triangle or n-gon).
 ///
@@ -36,13 +32,10 @@ struct Normal {
 /// representable — Triangulator and projection rely on this and never
 /// check for a mismatched size.
 struct Face {
-  std::vector<std::size_t>
-      vertex_indices; ///< Always absolute, 0-based, resolved and validated.
-  std::vector<std::size_t> normal_indices; ///< Same size as vertex_indices, or
-                                           ///< empty. See class invariant.
-  FaceFlags flags =
-      FaceFlags::None;   ///< Reserved, unused by the current parser.
-  uint32_t material = 0; ///< Reserved, unused by the current parser.
+    std::vector<std::size_t> vertex_indices; ///< Always absolute, 0-based, resolved and validated.
+    std::vector<std::size_t> normal_indices; ///< Same size as vertex_indices, or empty. See class invariant.
+    FaceFlags flags = FaceFlags::None;       ///< Reserved, unused by the current parser.
+    uint32_t material = 0;                   ///< Reserved, unused by the current parser.
 };
 
 /// @brief A polygonal mesh: flat, indexed vertex/normal/face buffers.
@@ -51,18 +44,31 @@ struct Face {
 /// there is no ownership or lifetime relationship beyond that of the
 /// EditorMesh itself.
 struct EditorMesh {
-  std::vector<Vertex> vertices;
-  std::vector<Normal> normals;
-  std::vector<Face> faces;
+    std::vector<Vertex> vertices;
+    std::vector<Normal> normals;
+    std::vector<Face>   faces;
 };
 
+/// @brief An undirected edge, referencing two vertex indices into an
+///        EditorMesh's @c vertices vector.
+struct Edge { std::size_t a, b; };
+
 /// @brief Number of vertices in @c mesh.
-std::size_t vertex_count(const EditorMesh &mesh);
+std::size_t vertex_count(const EditorMesh& mesh);
 
 /// @brief Number of faces in @c mesh.
-std::size_t face_count(const EditorMesh &mesh);
+std::size_t face_count(const EditorMesh& mesh);
 
 /// @brief Number of normals in @c mesh.
-std::size_t normal_count(const EditorMesh &mesh);
+std::size_t normal_count(const EditorMesh& mesh);
+
+/// @brief Collects the unique undirected edges implied by every face's
+///        consecutive vertex pairs (including the closing edge).
+///
+/// Used both by projection.cpp (to build ProjectedMesh.edges) and by the
+/// C API (editor_get_edge_count/editor_get_edges) — a single source of
+/// truth for what "the mesh's edges" means, rather than duplicating this
+/// computation in two translation units.
+std::vector<Edge> compute_edges(const EditorMesh& mesh);
 
 } // namespace editor_core
