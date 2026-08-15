@@ -18,6 +18,7 @@
 #include "editor_core/context.hpp"
 #include "editor_core/error.hpp"
 #include "editor_core/geometry/mesh.hpp"
+#include "editor_core/geometry/triangulator.hpp"
 #include "editor_core/io/obj_reader.hpp"
 
 namespace {
@@ -50,7 +51,8 @@ EditorErrorCode to_c_error_code(editor_core::ErrorCode code) {
 /// @brief Internal layout behind the opaque EditorHandle pointer.
 struct EditorHandle_ {
     EditorContext context;
-    EditorMesh mesh;            ///< Empty until editor_load_obj succeeds.
+    EditorMesh mesh;                       ///< Empty until editor_load_obj succeeds.
+    editor_core::TriangleList triangles;   ///< Empty until editor_triangulate succeeds.
     EditorError last_error{};
     bool has_last_error = false;
 };
@@ -79,6 +81,7 @@ bool editor_load_obj(EditorHandle handle, const char* filepath) {
             return false;
         }
         handle->mesh = std::move(*result);
+        handle->triangles.clear(); // stale relative to the newly loaded mesh — editor_triangulate must be called again
         handle->has_last_error = false;
         return true;
     } catch (...) {
@@ -227,6 +230,44 @@ void editor_get_face_indices_flat(EditorHandle handle, uint32_t* out_vertex_indi
                 }
             }
             offset += f.vertex_indices.size();
+        }
+    } catch (...) {
+    }
+}
+
+bool editor_triangulate(EditorHandle handle) {
+    if (!handle) return false;
+    try {
+        auto result = editor_core::triangulate(handle->mesh);
+        if (!result) {
+            handle->last_error = result.error();
+            handle->has_last_error = true;
+            return false;
+        }
+        handle->triangles = std::move(*result);
+        handle->has_last_error = false;
+        return true;
+    } catch (...) {
+        handle->last_error = EditorError{
+            editor_core::ErrorCode::InternalError, "editor_api::editor_triangulate",
+            "unexpected exception crossing the C boundary", std::nullopt};
+        handle->has_last_error = true;
+        return false;
+    }
+}
+
+size_t editor_get_triangle_count(EditorHandle handle) {
+    if (!handle) return 0;
+    return handle->triangles.size();
+}
+
+void editor_get_triangles(EditorHandle handle, uint32_t* out_indices) {
+    if (!handle || !out_indices) return;
+    try {
+        for (std::size_t i = 0; i < handle->triangles.size(); ++i) {
+            out_indices[i * 3 + 0] = static_cast<uint32_t>(handle->triangles[i].v0);
+            out_indices[i * 3 + 1] = static_cast<uint32_t>(handle->triangles[i].v1);
+            out_indices[i * 3 + 2] = static_cast<uint32_t>(handle->triangles[i].v2);
         }
     } catch (...) {
     }

@@ -118,6 +118,34 @@ size_t editor_get_face_index_total(EditorHandle handle);
 void   editor_get_face_indices_flat(EditorHandle handle, uint32_t* out_vertex_indices,
                                      uint32_t* out_normal_indices);
 
+/* ---------------------------------------------------------------------
+ * Triangulation — required before rendering, since GPU mesh formats
+ * (e.g. Raylib's Mesh/UploadMesh) only understand triangle lists, while
+ * faces above may be n-gons. Deliberately a separate, explicit step from
+ * editor_load_obj (not run automatically) so callers who only need raw
+ * n-gon face data (e.g. a future SVG-export path) aren't forced to pay
+ * for it.
+ * ------------------------------------------------------------------- */
+
+/**
+ * Triangulates the currently loaded mesh via the Core's ear-clipping
+ * triangulator (editor_core::triangulate — handles concave n-gons
+ * correctly). Frontends MUST use this rather than a naive fan
+ * triangulation of their own: a fan silently produces wrong geometry for
+ * any concave n-gon, exactly the case this triangulator exists to handle
+ * (see triangulator.hpp).
+ *
+ * Returns true on success. On failure (e.g. a face with collinear or
+ * duplicated vertices — EDITOR_ERROR_DEGENERATE_FACE), returns false and
+ * any previously cached triangulation from an earlier successful call is
+ * left untouched.
+ */
+bool editor_triangulate(EditorHandle handle);
+
+size_t editor_get_triangle_count(EditorHandle handle);
+/** out_indices: >= 3 * editor_get_triangle_count(handle) uint32_t, [v0,v1,v2, v0,v1,v2, ...] — indices into the same vertex buffer as editor_get_vertices. */
+void   editor_get_triangles(EditorHandle handle, uint32_t* out_indices);
+
 #ifdef __cplusplus
 }
 #endif
