@@ -8,6 +8,10 @@ namespace editor_client {
 
 namespace {
 
+/// Blender-style amber/orange wireframe edge color (close to Blender's
+/// selected-edge highlight, #e8801f-ish).
+constexpr Color kAmberEdgeColor{232, 126, 34, 255};
+
 struct Vec3 { float x, y, z; };
 
 Vec3 sub(const Vec3& a, const Vec3& b) { return {a.x - b.x, a.y - b.y, a.z - b.z}; }
@@ -106,6 +110,7 @@ bool MeshView::load(const std::string& filepath) {
 
     std::vector<uint32_t> indices32(triangle_count * 3);
     editor_get_triangles(handle_, indices32.data());
+    cached_triangle_indices_ = indices32; // reused by translate/rotate/scale to recompute normals
 
     const std::vector<float> normals = compute_smooth_normals(vertices, indices32);
 
@@ -151,7 +156,50 @@ void MeshView::draw() const {
         return;
     }
     DrawModel(model_, Vector3{0.0f, 0.0f, 0.0f}, 1.0f, LIGHTGRAY);
-    DrawModelWires(model_, Vector3{0.0f, 0.0f, 0.0f}, 1.0f, DARKGRAY);
+    DrawModelWires(model_, Vector3{0.0f, 0.0f, 0.0f}, 1.0f, kAmberEdgeColor);
+}
+
+void MeshView::refresh_gpu_buffers() {
+    if (!has_model_) {
+        return;
+    }
+
+    const std::size_t vertex_count = editor_get_vertex_count(handle_);
+    std::vector<float> vertices(vertex_count * 3);
+    editor_get_vertices(handle_, vertices.data());
+
+    const std::vector<float> normals = compute_smooth_normals(vertices, cached_triangle_indices_);
+
+    // Raylib's Mesh vertex-buffer-object indices: 0 = positions, 2 =
+    // normals (1 = texcoords, 3 = colors, ... — see rmodels.c). Not
+    // self-documenting from the API alone, worth calling out explicitly.
+    Mesh& mesh = model_.meshes[0];
+    UpdateMeshBuffer(mesh, 0, vertices.data(), static_cast<int>(vertices.size() * sizeof(float)), 0);
+    UpdateMeshBuffer(mesh, 2, normals.data(), static_cast<int>(normals.size() * sizeof(float)), 0);
+}
+
+void MeshView::translate(float dx, float dy, float dz) {
+    if (!has_model_) {
+        return;
+    }
+    editor_translate(handle_, dx, dy, dz);
+    refresh_gpu_buffers();
+}
+
+void MeshView::rotate(float axis_x, float axis_y, float axis_z, float angle_radians) {
+    if (!has_model_) {
+        return;
+    }
+    editor_rotate(handle_, axis_x, axis_y, axis_z, angle_radians);
+    refresh_gpu_buffers();
+}
+
+void MeshView::scale(float sx, float sy, float sz) {
+    if (!has_model_) {
+        return;
+    }
+    editor_scale(handle_, sx, sy, sz);
+    refresh_gpu_buffers();
 }
 
 std::string MeshView::get_last_error() const {

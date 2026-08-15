@@ -7,7 +7,7 @@ namespace editor_client {
 
 namespace {
 constexpr float kOrbitSpeed  = 0.005f; // radians per pixel of mouse delta
-constexpr float kZoomSpeed   = 1.0f;   // distance units per wheel notch
+constexpr float kZoomSpeed   = 0.05f;  // distance units per pixel of middle-button drag
 constexpr float kMinDistance = 1.0f;
 constexpr float kMaxDistance = 100.0f;
 constexpr float kPitchLimit  = 1.5f;   // radians (~86 degrees) — stays short of the poles
@@ -19,15 +19,22 @@ OrbitalCamera::OrbitalCamera(Vector3 target, float distance)
 }
 
 void OrbitalCamera::update() {
-    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+    // Right button drags orbit the camera; left button and the wheel are
+    // reserved for mesh editing (see main.cpp's handle_editing_input).
+    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
         const Vector2 delta = GetMouseDelta();
         yaw_ -= delta.x * kOrbitSpeed;
         pitch_ -= delta.y * kOrbitSpeed;
         pitch_ = std::clamp(pitch_, -kPitchLimit, kPitchLimit);
     }
 
-    distance_ -= GetMouseWheelMove() * kZoomSpeed;
-    distance_ = std::clamp(distance_, kMinDistance, kMaxDistance);
+    // Middle button drag (vertical) dollies the camera in/out — the wheel
+    // itself is left free for mesh scaling.
+    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+        const Vector2 delta = GetMouseDelta();
+        distance_ += delta.y * kZoomSpeed;
+        distance_ = std::clamp(distance_, kMinDistance, kMaxDistance);
+    }
 
     rebuild_camera();
 }

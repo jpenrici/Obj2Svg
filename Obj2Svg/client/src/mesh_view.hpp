@@ -6,6 +6,7 @@
 // adjust.
 
 #include <string>
+#include <vector>
 
 #include "raylib.h"
 
@@ -41,6 +42,19 @@ public:
     /// Draws the current Model at the origin. No-op if has_model() is false.
     void draw() const;
 
+    /// @name Basic editing (Phase 4)
+    /// In-place transforms on the loaded mesh's vertices via the C API's
+    /// editor_translate/editor_rotate/editor_scale, immediately followed
+    /// by refreshing the already-uploaded GPU vertex/normal buffers to
+    /// match — no re-triangulation needed, since a transform only moves
+    /// vertex positions and never changes face topology. No-op if
+    /// has_model() is false.
+    ///@{
+    void translate(float dx, float dy, float dz);
+    void rotate(float axis_x, float axis_y, float axis_z, float angle_radians);
+    void scale(float sx, float sy, float sz);
+    ///@}
+
     /// Human-readable description of the last load() failure.
     std::string get_last_error() const;
 
@@ -51,10 +65,12 @@ public:
 
 private:
     void unload_model();
+    void refresh_gpu_buffers();
 
     EditorHandle handle_;
     Model model_{};
     bool has_model_ = false;
+    std::vector<uint32_t> cached_triangle_indices_; ///< Unchanged by translate/rotate/scale — topology-only, reused to recompute normals after each transform.
 };
 
 } // namespace editor_client

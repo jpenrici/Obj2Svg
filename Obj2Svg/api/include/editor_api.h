@@ -146,6 +146,27 @@ size_t editor_get_triangle_count(EditorHandle handle);
 /** out_indices: >= 3 * editor_get_triangle_count(handle) uint32_t, [v0,v1,v2, v0,v1,v2, ...] — indices into the same vertex buffer as editor_get_vertices. */
 void   editor_get_triangles(EditorHandle handle, uint32_t* out_indices);
 
+/* ---------------------------------------------------------------------
+ * Basic editing (Phase 4) — in-place transforms on the loaded mesh's
+ * vertex positions, via editor_core::transform.hpp. Mirrors that header's
+ * conventions exactly: normals are NOT updated (see transform.hpp's
+ * documented limitation — a non-uniform scale or rotation will make
+ * existing normals stale relative to the new geometry), and multiple
+ * calls compose in the order they're made (each is applied immediately,
+ * not queued).
+ *
+ * These never fail on their own — make_translation/make_rotation/
+ * make_scale + apply_transform always succeed, even for a degenerate
+ * rotation axis (falls back to identity, see transform.hpp) — so the
+ * bool return here only reflects whether @c handle itself was valid
+ * (false only for a NULL handle). Calling any of these before a mesh is
+ * loaded is a harmless no-op on an empty vertex list.
+ * ------------------------------------------------------------------- */
+
+bool editor_translate(EditorHandle handle, float dx, float dy, float dz);
+bool editor_rotate(EditorHandle handle, float axis_x, float axis_y, float axis_z, float angle_radians);
+bool editor_scale(EditorHandle handle, float sx, float sy, float sz);
+
 #ifdef __cplusplus
 }
 #endif

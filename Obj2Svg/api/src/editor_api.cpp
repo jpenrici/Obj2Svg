@@ -18,6 +18,7 @@
 #include "editor_core/context.hpp"
 #include "editor_core/error.hpp"
 #include "editor_core/geometry/mesh.hpp"
+#include "editor_core/geometry/transform.hpp"
 #include "editor_core/geometry/triangulator.hpp"
 #include "editor_core/io/obj_reader.hpp"
 
@@ -271,4 +272,34 @@ void editor_get_triangles(EditorHandle handle, uint32_t* out_indices) {
         }
     } catch (...) {
     }
+}
+
+bool editor_translate(EditorHandle handle, float dx, float dy, float dz) {
+    if (!handle) return false;
+    try {
+        editor_core::apply_transform(handle->mesh, editor_core::make_translation(dx, dy, dz));
+    } catch (...) {
+        // apply_transform never throws by design, but a caught exception
+        // here still must not cross the C boundary — see file header.
+    }
+    return true;
+}
+
+bool editor_rotate(EditorHandle handle, float axis_x, float axis_y, float axis_z, float angle_radians) {
+    if (!handle) return false;
+    try {
+        editor_core::apply_transform(handle->mesh,
+                                      editor_core::make_rotation(axis_x, axis_y, axis_z, angle_radians));
+    } catch (...) {
+    }
+    return true;
+}
+
+bool editor_scale(EditorHandle handle, float sx, float sy, float sz) {
+    if (!handle) return false;
+    try {
+        editor_core::apply_transform(handle->mesh, editor_core::make_scale(sx, sy, sz));
+    } catch (...) {
+    }
+    return true;
 }

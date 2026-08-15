@@ -21,9 +21,11 @@ class OrbitalCamera {
 public:
     explicit OrbitalCamera(Vector3 target = {0.0f, 0.0f, 0.0f}, float distance = 6.0f);
 
-    /// Reads mouse input (left-drag to orbit, wheel to zoom) via raylib
-    /// and updates yaw/pitch/distance accordingly. Call once per frame,
-    /// before using camera().
+    /// Reads mouse input — right-button drag to orbit, middle-button
+    /// vertical drag to dolly in/out — via raylib, updating yaw/pitch/
+    /// distance accordingly. Left button and the scroll wheel are
+    /// deliberately left free for mesh editing (see main.cpp). Call once
+    /// per frame, before using camera().
     void update();
 
     /// The raylib Camera3D derived from the current orbit state — ready
