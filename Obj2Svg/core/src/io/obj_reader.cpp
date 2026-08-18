@@ -14,7 +14,6 @@ namespace {
 
 constexpr std::string_view kCtx = "obj_reader::load_obj";
 
-/// @brief Trims leading/trailing ASCII whitespace from @c sv.
 std::string_view trim(std::string_view sv) {
   const auto first = sv.find_first_not_of(" \t\r\n");
   if (first == std::string_view::npos) {
@@ -24,7 +23,6 @@ std::string_view trim(std::string_view sv) {
   return sv.substr(first, last - first + 1);
 }
 
-/// @brief Parses a signed integer from @c text using std::from_chars.
 std::expected<long, EditorError> parse_long(std::string_view text,
                                             std::size_t line_number) {
   long value = 0;
@@ -39,9 +37,6 @@ std::expected<long, EditorError> parse_long(std::string_view text,
   return value;
 }
 
-/// @brief Resolves a raw OBJ index (1-based positive, or negative/relative)
-///        against @c count elements read so far into an absolute, 0-based,
-///        range-checked index.
 std::expected<std::size_t, EditorError> resolve_index(long raw,
                                                       std::size_t count,
                                                       std::size_t line_number,
@@ -67,16 +62,11 @@ std::expected<std::size_t, EditorError> resolve_index(long raw,
   return static_cast<std::size_t>(absolute_1based - 1);
 }
 
-/// @brief One vertex reference parsed out of a face token: `v`, `v/vt`,
-///        `v//vn` or `v/vt/vn`. @c normal_index is unset when the token has
-///        no normal slot at all (not even an empty one).
 struct FaceVertexRef {
   std::size_t vertex_index;
   std::optional<std::size_t> normal_index;
 };
 
-/// @brief Parses a single whitespace-delimited face token (e.g. "3//7")
-///        and resolves its indices against the element counts read so far.
 std::expected<FaceVertexRef, EditorError>
 parse_face_token(std::string_view token, std::size_t vertex_count,
                  std::size_t normal_count, std::size_t line_number) {
@@ -134,9 +124,6 @@ parse_face_token(std::string_view token, std::size_t vertex_count,
   return FaceVertexRef{*vertex_index, *normal_index};
 }
 
-/// @brief Parses an entire `f ...` line (directive already stripped) into a
-///        Face, enforcing the vertex/normal index-count invariant
-///        documented in mesh.hpp.
 std::expected<Face, EditorError> parse_face_line(std::istringstream &iss,
                                                  std::size_t vertex_count,
                                                  std::size_t normal_count,

@@ -1,15 +1,3 @@
-// test_obj_reader.cpp
-// Simple unit tests for editor_core::io::load_obj — no external framework.
-// Each check uses assert(); the process exits 0 on success, aborts (non-zero)
-// on the first failed assertion. Fixture paths are resolved via the
-// FIXTURES_DIR macro, injected by CMake (see core/CMakeLists.txt) as the
-// absolute path to core/tests/io/fixtures/.
-//
-// Coverage mirrors spec section 8 ("Cobertura de Testes") for
-// test_obj_reader.cpp, plus one extra case for the Face normal-count
-// invariant (decision #2 in docs/HISTORICO.md), since it's the structural
-// guarantee the rest of the Core (Triangulator, projection) relies on.
-
 #include "editor_core/context.hpp"
 #include "editor_core/io/obj_reader.hpp"
 

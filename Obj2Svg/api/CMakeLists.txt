@@ -1,5 +1,4 @@
-# api/CMakeLists.txt EditorAPI — extern "C" boundary over EditorCore, using
-# opaque handles.
+# api/CMakeLists.txt
 
 add_library(
   editor_api STATIC
