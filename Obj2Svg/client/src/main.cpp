@@ -33,18 +33,21 @@ void draw_world_axes(float length) {
   DrawLine3D(Vector3{0.0f, 0.0f, -length}, Vector3{0.0f, 0.0f, length}, BLUE);
 }
 
-void handle_export_input(editor_client::MeshView &mesh_view,
+bool handle_export_input(editor_client::MeshView &mesh_view,
                          const editor_client::OrbitalCamera &orbital_camera,
                          int viewport_width, int viewport_height) {
+
   if (!mesh_view.has_model()) {
-    return;
+    return false;
   }
 
+  bool exported_file = false;
+
   if (IsKeyPressed(KEY_F2)) {
-    const bool ok = editor_client::export_svg(
+    exported_file = editor_client::export_svg(
         mesh_view, orbital_camera.camera(), viewport_width, viewport_height,
         "export_wireframe.svg", true);
-    if (ok) {
+    if (exported_file) {
       std::printf("Exported export_wireframe.svg\n");
     } else {
       std::fprintf(stderr, "SVG export failed: %s\n",
@@ -53,16 +56,18 @@ void handle_export_input(editor_client::MeshView &mesh_view,
   }
 
   if (IsKeyPressed(KEY_F3)) {
-    const bool ok = editor_client::export_svg(
+    exported_file = editor_client::export_svg(
         mesh_view, orbital_camera.camera(), viewport_width, viewport_height,
         "export_solid.svg", false);
-    if (ok) {
+    if (exported_file) {
       std::printf("Exported export_solid.svg\n");
     } else {
       std::fprintf(stderr, "SVG export failed: %s\n",
                    mesh_view.get_last_error().c_str());
     }
   }
+
+  return exported_file;
 }
 
 void handle_editing_input(editor_client::MeshView &mesh_view) {
@@ -119,6 +124,9 @@ int main(int argc, char *argv[]) {
       try_load(mesh_view, argv[1]);
     }
 
+    float export_waiting_time = 0.0f; // message display time counter
+    bool exported_file = false;
+
     while (!WindowShouldClose()) {
       if (IsFileDropped()) {
         FilePathList dropped = LoadDroppedFiles();
@@ -130,8 +138,20 @@ int main(int argc, char *argv[]) {
 
       orbital_camera.update();
       handle_editing_input(mesh_view);
-      handle_export_input(mesh_view, orbital_camera, kScreenWidth,
-                          kScreenHeight);
+
+      if (!exported_file) {
+        exported_file = handle_export_input(mesh_view, orbital_camera,
+                                            kScreenWidth, kScreenHeight);
+        if (exported_file) {
+          export_waiting_time = 1.0f;
+        }
+      }
+
+      if (export_waiting_time > 0.0f) {
+        export_waiting_time -= GetFrameTime();
+      } else {
+        exported_file = false;
+      }
 
       BeginDrawing();
       {
@@ -139,8 +159,10 @@ int main(int argc, char *argv[]) {
 
         BeginMode3D(orbital_camera.camera());
         {
-          DrawGrid(20, 1.0f);
-          draw_world_axes(kAxisLength);
+          if (!exported_file) {
+            DrawGrid(20, 1.0f);
+            draw_world_axes(kAxisLength);
+          }
           mesh_view.draw();
         }
         EndMode3D();
@@ -155,12 +177,16 @@ int main(int argc, char *argv[]) {
                    20, 20, 18, DARKGRAY);
           DrawText("F2: export wireframe SVG | F3: export solid SVG", 20, 44,
                    18, DARKGRAY);
+          if (exported_file) {
+            DrawText("Exporting SVG...", 20, kScreenHeight - 22, 24, RED);
+          }
         }
+
         DrawFPS(kScreenWidth - 80, kScreenHeight - 20);
       }
       EndDrawing();
     }
-  } // mesh_view/orbital_camera destroyed here, GL context still alive
+  }
 
   CloseWindow();
 
