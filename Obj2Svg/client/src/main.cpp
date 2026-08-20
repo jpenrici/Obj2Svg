@@ -20,6 +20,16 @@ constexpr float kMeshScaleWheelSpeed = 0.1f;
 constexpr float kMinScaleFactor = 0.01f;
 constexpr float kAxisLength = 10.0f;
 
+constexpr float kExportNotificationSeconds = 1.0f;
+
+struct ExportNotification {
+  std::string message;
+  Color color = DARKGRAY;
+  float remaining_seconds = 0.0f;
+
+  bool active() const { return remaining_seconds > 0.0f; }
+};
+
 void try_load(editor_client::MeshView &mesh_view, const char *path) {
   if (!mesh_view.load(path)) {
     std::fprintf(stderr, "Failed to load '%s': %s\n", path,
@@ -33,41 +43,44 @@ void draw_world_axes(float length) {
   DrawLine3D(Vector3{0.0f, 0.0f, -length}, Vector3{0.0f, 0.0f, length}, BLUE);
 }
 
-bool handle_export_input(editor_client::MeshView &mesh_view,
+void handle_export_input(editor_client::MeshView &mesh_view,
                          const editor_client::OrbitalCamera &orbital_camera,
-                         int viewport_width, int viewport_height) {
+                         int viewport_width, int viewport_height,
+                         ExportNotification &notification) {
 
   if (!mesh_view.has_model()) {
-    return false;
+    return;
   }
 
-  bool exported_file = false;
-
   if (IsKeyPressed(KEY_F2)) {
-    exported_file = editor_client::export_svg(
+    const bool ok = editor_client::export_svg(
         mesh_view, orbital_camera.camera(), viewport_width, viewport_height,
         "export_wireframe.svg", true);
-    if (exported_file) {
-      std::printf("Exported export_wireframe.svg\n");
-    } else {
+    notification.message =
+        ok ? "Exported wireframe SVG"
+           : ("Export failed: " + mesh_view.get_last_error());
+    notification.color = ok ? DARKGREEN : MAROON;
+    notification.remaining_seconds = kExportNotificationSeconds;
+    if (!ok) {
       std::fprintf(stderr, "SVG export failed: %s\n",
                    mesh_view.get_last_error().c_str());
     }
   }
 
   if (IsKeyPressed(KEY_F3)) {
-    exported_file = editor_client::export_svg(
+    const bool ok = editor_client::export_svg(
         mesh_view, orbital_camera.camera(), viewport_width, viewport_height,
         "export_solid.svg", false);
-    if (exported_file) {
-      std::printf("Exported export_solid.svg\n");
-    } else {
+    notification.message =
+        ok ? "Exported solid SVG"
+           : ("Export failed: " + mesh_view.get_last_error());
+    notification.color = ok ? DARKGREEN : MAROON;
+    notification.remaining_seconds = kExportNotificationSeconds;
+    if (!ok) {
       std::fprintf(stderr, "SVG export failed: %s\n",
                    mesh_view.get_last_error().c_str());
     }
   }
-
-  return exported_file;
 }
 
 void handle_editing_input(editor_client::MeshView &mesh_view) {
@@ -119,13 +132,11 @@ int main(int argc, char *argv[]) {
   {
     editor_client::OrbitalCamera orbital_camera;
     editor_client::MeshView mesh_view;
+    ExportNotification export_notification;
 
     if (argc > 1) {
       try_load(mesh_view, argv[1]);
     }
-
-    float export_waiting_time = 0.0f; // message display time counter
-    bool exported_file = false;
 
     while (!WindowShouldClose()) {
       if (IsFileDropped()) {
@@ -139,18 +150,10 @@ int main(int argc, char *argv[]) {
       orbital_camera.update();
       handle_editing_input(mesh_view);
 
-      if (!exported_file) {
-        exported_file = handle_export_input(mesh_view, orbital_camera,
-                                            kScreenWidth, kScreenHeight);
-        if (exported_file) {
-          export_waiting_time = 1.0f;
-        }
-      }
-
-      if (export_waiting_time > 0.0f) {
-        export_waiting_time -= GetFrameTime();
-      } else {
-        exported_file = false;
+      handle_export_input(mesh_view, orbital_camera, kScreenWidth,
+                          kScreenHeight, export_notification);
+      if (export_notification.remaining_seconds > 0.0f) {
+        export_notification.remaining_seconds -= GetFrameTime();
       }
 
       BeginDrawing();
@@ -159,7 +162,8 @@ int main(int argc, char *argv[]) {
 
         BeginMode3D(orbital_camera.camera());
         {
-          if (!exported_file) {
+          // Intentionally hidden during the flash window
+          if (!export_notification.active()) {
             DrawGrid(20, 1.0f);
             draw_world_axes(kAxisLength);
           }
@@ -177,8 +181,9 @@ int main(int argc, char *argv[]) {
                    20, 20, 18, DARKGRAY);
           DrawText("F2: export wireframe SVG | F3: export solid SVG", 20, 44,
                    18, DARKGRAY);
-          if (exported_file) {
-            DrawText("Exporting SVG...", 20, kScreenHeight - 22, 24, RED);
+          if (export_notification.active()) {
+            DrawText(export_notification.message.c_str(), 20,
+                     kScreenHeight - 32, 24, export_notification.color);
           }
         }
 
