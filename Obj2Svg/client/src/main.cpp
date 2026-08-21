@@ -186,8 +186,10 @@ int main(int argc, char *argv[]) {
           DrawText("Arrows/PgUp/PgDn: move | LMB drag: rotate | Wheel: scale | "
                    "RMB drag: orbit camera | MMB drag: zoom camera",
                    20, 20, 18, DARKGRAY);
-          DrawText("F2: export wireframe SVG | F3: export solid SVG", 20, 44,
-                   18, DARKGRAY);
+          DrawText("F2: export wireframe SVG | F3: export solid SVG | R: reset "
+                   "object",
+                   20, 44, 18, DARKGRAY);
+          DrawText(mesh_view.transform_hud_text().c_str(), 20, 68, 18, PURPLE);
           if (export_notification.active()) {
             DrawText(export_notification.message.c_str(), 20,
                      kScreenHeight - 32, 24, export_notification.color);

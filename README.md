@@ -2,6 +2,8 @@
 
 OBJ file visualization and SVG export tool using C++ and Raylib.
 
+See more: https://en.wikipedia.org/wiki/Wavefront_.obj_file
+
 ## Detail
 
 Obj2Svg handles exclusively the **OBJ** file format.
@@ -38,9 +40,10 @@ cmake --build build
 
 ```
 Obj2Svg/
-├── core/    # Engine library (geometry + I/O)
-├── api/     # extern "C" boundary
-└── client/  # Raylib visualization/interaction layer
+├── core/      # Engine library (geometry + I/O)
+├── api/       # Extern "C" boundary
+├── client/    # Raylib visualization/interaction layer
+└── resources/ # OBJ files for samples
 ```
 
 ## Display
