@@ -1,0 +1,56 @@
+# Simple hand-written cube
+
+# Object name
+o Cube
+
+# List of geometric vertices, with (x, y, z) coordinates
+
+#      v8---------v7
+#     /.         /|
+#    / .        / |
+#   v4---------v3 |    y
+#   |  v5 . . .|. v6    |  . Z
+#   | .        | /      | .
+#   |.         |/       |.
+#   v1---------v2       .----- x
+#
+
+# Front plane (Z = 0)
+v 0.0 0.0 0.0 # v1 - Bottom-front-left
+v 1.0 0.0 0.0 # v2 - Bottom-front-right
+v 1.0 1.0 0.0 # v3 - Top-front-right
+v 0.0 1.0 0.0 # v4 - Top-front-left
+
+# Back plane (Z = 1)
+v 0.0 0.0 1.0 # v5 - Bottom-back-left
+v 1.0 0.0 1.0 # v6 - Bottom-back-right
+v 1.0 1.0 1.0 # v7 - Top-back-right
+v 0.0 1.0 1.0 # v8 - Top-back-left
+
+# List of faces
+
+# Front    Back     Left     Right    Top      Bottom
+# v4---v3  v8---v7  v4---v8  v3---v7  v8---v7  v5---v6
+# |   / |  |   / |  |   / |  |   / |  |   / |  |   / |
+# |  /  |  |  /  |  |  /  |  |  /  |  |  /  |  |  /  |
+# | /   |  | /   |  | /   |  | /   |  | /   |  | /   |
+# v1---v2  v5---v6  v1---v5  v2---v6  v4---v3  v1---v2
+
+# Front
+f 1 2 3
+f 1 3 4
+# Back
+f 5 7 6
+f 5 8 7
+# Left
+f 1 5 8
+f 1 8 4
+# Right
+f 2 6 7
+f 2 7 3
+# Top
+f 4 3 7
+f 4 7 8
+# Bottom
+f 1 6 2
+f 1 5 6

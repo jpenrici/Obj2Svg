@@ -198,12 +198,41 @@ void MeshView::scale(float sx, float sy, float sz) {
   refresh_gpu_buffers();
 }
 
+void MeshView::reset() {
+  if (!has_model_) {
+    return;
+  }
+  editor_reset_mesh(handle_);
+  refresh_gpu_buffers();
+}
+
 std::string MeshView::get_last_error() const {
   if (!handle_) {
     return "editor session failed to initialize";
   }
   char buffer[512];
   editor_get_last_error_message(handle_, buffer, sizeof(buffer));
+  return std::string(buffer);
+}
+
+std::string MeshView::transform_hud_text() const {
+  if (!has_model_) {
+    return {};
+  }
+  float position[3], rotation[3], scale_factors[3];
+  editor_get_transform_state(handle_, position, rotation, scale_factors);
+
+  char buffer[192];
+  std::snprintf(
+      buffer, sizeof(buffer),
+      "Pos (%.2f, %.2f, %.2f)  Rot (%.1f, %.1f, %.1f) deg  Scale (%.2f, %.2f, "
+      "%.2f)",
+      static_cast<double>(position[0]), static_cast<double>(position[1]),
+      static_cast<double>(position[2]), static_cast<double>(rotation[0]),
+      static_cast<double>(rotation[1]), static_cast<double>(rotation[2]),
+      static_cast<double>(scale_factors[0]),
+      static_cast<double>(scale_factors[1]),
+      static_cast<double>(scale_factors[2]));
   return std::string(buffer);
 }
 

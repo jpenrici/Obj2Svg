@@ -1,8 +1,5 @@
 #include "editor_api.h"
 
-#include <algorithm>
-#include <cstring>
-
 #include "editor_core/context.hpp"
 #include "editor_core/error.hpp"
 #include "editor_core/geometry/mesh.hpp"
@@ -11,6 +8,10 @@
 #include "editor_core/geometry/triangulator.hpp"
 #include "editor_core/io/obj_reader.hpp"
 #include "editor_core/io/svg_writer.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <cstring>
 
 namespace {
 
@@ -55,7 +56,57 @@ struct EditorHandle_ {
   editor_core::TriangleList triangles;
   EditorError last_error{};
   bool has_last_error = false;
+  std::vector<editor_core::Vertex> original_vertices;
+  float position[3] = {0.0f, 0.0f, 0.0f};
+  float scale[3] = {1.0f, 1.0f, 1.0f};
+  editor_core::Mat4 rotation = editor_core::make_identity();
 };
+
+namespace {
+
+void recompute_vertices(EditorHandle_ &handle) {
+  EditorMesh temp;
+  temp.vertices = handle.original_vertices;
+
+  const editor_core::Mat4 scale_m = editor_core::make_scale(
+      handle.scale[0], handle.scale[1], handle.scale[2]);
+  const editor_core::Mat4 translate_m = editor_core::make_translation(
+      handle.position[0], handle.position[1], handle.position[2]);
+
+  const editor_core::Mat4 rs = editor_core::multiply(handle.rotation, scale_m);
+  const editor_core::Mat4 trs = editor_core::multiply(translate_m, rs);
+
+  editor_core::apply_transform(temp, trs);
+  handle.mesh.vertices = std::move(temp.vertices);
+}
+
+void extract_euler_degrees(const editor_core::Mat4 &r, float out_degrees[3]) {
+  const float r02 = r.m[8], r12 = r.m[9], r22 = r.m[10];
+  const float r00 = r.m[0], r01 = r.m[4];
+  const float r10 = r.m[1], r11 = r.m[5];
+
+  const float sin_y = std::clamp(r02, -1.0f, 1.0f);
+  const float theta_y = std::asin(sin_y);
+
+  float theta_x, theta_z;
+  if (std::fabs(std::cos(theta_y)) > 1e-6f) {
+    theta_x = std::atan2(-r12, r22);
+    theta_z = std::atan2(-r01, r00);
+  } else {
+    // Gimbal lock: theta_x/theta_z aren't independently recoverable —
+    // fold everything into theta_x and report zero for theta_z, a
+    // common convention.
+    theta_z = 0.0f;
+    theta_x = (sin_y > 0.0f) ? std::atan2(r10, r11) : std::atan2(-r10, r11);
+  }
+
+  constexpr float kRadToDeg = 180.0f / 3.14159265358979323846f;
+  out_degrees[0] = theta_x * kRadToDeg; // X
+  out_degrees[1] = theta_y * kRadToDeg; // Y
+  out_degrees[2] = theta_z * kRadToDeg; // Z
+}
+
+} // namespace
 
 EditorHandle editor_create(void) {
   try {
@@ -80,6 +131,10 @@ bool editor_load_obj(EditorHandle handle, const char *filepath) {
     }
     handle->mesh = std::move(*result);
     handle->triangles.clear();
+    handle->original_vertices = handle->mesh.vertices;
+    handle->position[0] = handle->position[1] = handle->position[2] = 0.0f;
+    handle->scale[0] = handle->scale[1] = handle->scale[2] = 1.0f;
+    handle->rotation = editor_core::make_identity();
     handle->has_last_error = false;
     return true;
   } catch (...) {
@@ -290,8 +345,10 @@ bool editor_translate(EditorHandle handle, float dx, float dy, float dz) {
   if (!handle)
     return false;
   try {
-    editor_core::apply_transform(handle->mesh,
-                                 editor_core::make_translation(dx, dy, dz));
+    handle->position[0] += dx;
+    handle->position[1] += dy;
+    handle->position[2] += dz;
+    recompute_vertices(*handle);
   } catch (...) {
   }
   return true;
@@ -302,9 +359,10 @@ bool editor_rotate(EditorHandle handle, float axis_x, float axis_y,
   if (!handle)
     return false;
   try {
-    editor_core::apply_transform(
-        handle->mesh,
-        editor_core::make_rotation(axis_x, axis_y, axis_z, angle_radians));
+    const editor_core::Mat4 delta =
+        editor_core::make_rotation(axis_x, axis_y, axis_z, angle_radians);
+    handle->rotation = editor_core::multiply(delta, handle->rotation);
+    recompute_vertices(*handle);
   } catch (...) {
   }
   return true;
@@ -314,11 +372,49 @@ bool editor_scale(EditorHandle handle, float sx, float sy, float sz) {
   if (!handle)
     return false;
   try {
-    editor_core::apply_transform(handle->mesh,
-                                 editor_core::make_scale(sx, sy, sz));
+    handle->scale[0] *= sx;
+    handle->scale[1] *= sy;
+    handle->scale[2] *= sz;
+    recompute_vertices(*handle);
   } catch (...) {
   }
   return true;
+}
+
+bool editor_reset_mesh(EditorHandle handle) {
+  if (!handle)
+    return false;
+  try {
+    handle->position[0] = handle->position[1] = handle->position[2] = 0.0f;
+    handle->scale[0] = handle->scale[1] = handle->scale[2] = 1.0f;
+    handle->rotation = editor_core::make_identity();
+    handle->mesh.vertices = handle->original_vertices;
+  } catch (...) {
+  }
+  return true;
+}
+
+void editor_get_transform_state(EditorHandle handle, float out_position[3],
+                                float out_rotation_euler_degrees[3],
+                                float out_scale[3]) {
+  if (!handle)
+    return;
+  try {
+    if (out_position) {
+      out_position[0] = handle->position[0];
+      out_position[1] = handle->position[1];
+      out_position[2] = handle->position[2];
+    }
+    if (out_scale) {
+      out_scale[0] = handle->scale[0];
+      out_scale[1] = handle->scale[1];
+      out_scale[2] = handle->scale[2];
+    }
+    if (out_rotation_euler_degrees) {
+      extract_euler_degrees(handle->rotation, out_rotation_euler_degrees);
+    }
+  } catch (...) {
+  }
 }
 
 bool editor_export_svg(EditorHandle handle, const float view_matrix[16],

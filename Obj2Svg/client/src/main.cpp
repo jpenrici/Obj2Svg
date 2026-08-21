@@ -48,7 +48,7 @@ void handle_export_input(editor_client::MeshView &mesh_view,
                          int viewport_width, int viewport_height,
                          ExportNotification &notification) {
 
-  if (!mesh_view.has_model()) {
+  if (!mesh_view.has_model() || notification.active()) {
     return;
   }
 
@@ -123,6 +123,13 @@ void handle_editing_input(editor_client::MeshView &mesh_view) {
     mesh_view.scale(clamped, clamped, clamped);
   }
 }
+
+void handle_reset_input(editor_client::MeshView &mesh_view) {
+  if (mesh_view.has_model() && IsKeyPressed(KEY_R)) {
+    mesh_view.reset();
+  }
+}
+
 } // namespace
 
 int main(int argc, char *argv[]) {
@@ -149,7 +156,7 @@ int main(int argc, char *argv[]) {
 
       orbital_camera.update();
       handle_editing_input(mesh_view);
-
+      handle_reset_input(mesh_view);
       handle_export_input(mesh_view, orbital_camera, kScreenWidth,
                           kScreenHeight, export_notification);
       if (export_notification.remaining_seconds > 0.0f) {

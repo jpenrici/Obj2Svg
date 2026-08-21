@@ -146,6 +146,12 @@ bool editor_rotate(EditorHandle handle, float axis_x, float axis_y,
                    float axis_z, float angle_radians);
 bool editor_scale(EditorHandle handle, float sx, float sy, float sz);
 
+bool editor_reset_mesh(EditorHandle handle);
+
+void editor_get_transform_state(EditorHandle handle, float out_position[3],
+                                float out_rotation_euler_degrees[3],
+                                float out_scale[3]);
+
 /* ---------------------------------------------------------------------
  * SVG export
  * ------------------------------------------------------------------- */
